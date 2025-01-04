@@ -105,6 +105,9 @@ class _TodoListPageState extends State<TodoListPage> {
   }
 
   Future<void> deleteTodoById(String todoId) async {
+    setState(() {
+      isLoading = true;
+    });
     //delete the todo item
     final isSuccess = await TodoService.deleteTodoById(todoId);
 
@@ -120,5 +123,8 @@ class _TodoListPageState extends State<TodoListPage> {
       //show error message
       showErrorMessage(context, message: 'Failed to delete todo item');
     }
+    setState(() {
+      isLoading = false;
+    });
   }
 }
