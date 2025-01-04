@@ -1,8 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:todo_with_api/screens/add_page.dart';
-import 'package:http/http.dart' as http;
+import 'package:todo_with_api/services/todo_service.dart';
+import 'package:todo_with_api/utils/snackbar_helper.dart';
+import 'package:todo_with_api/widget/todo_card.dart';
 
 class TodoListPage extends StatefulWidget {
   const TodoListPage({super.key});
@@ -31,41 +31,25 @@ class _TodoListPageState extends State<TodoListPage> {
         visible: isLoading,
         replacement: RefreshIndicator(
           onRefresh: fetchTodoData,
-          child: ListView.builder(
-            itemCount: toDoItems.length,
-            itemBuilder: (context, index) {
-              final item = toDoItems[index] as Map;
-              final todoId = item['_id'] as String; // todo id eka gannawa
-              return ListTile(
-                leading: CircleAvatar(child: Text('${index + 1}')),
-                title: Text(item['title']),
-                subtitle: Text(item['description']),
-                trailing: PopupMenuButton(
-                  // dot 3 return krnne
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      // Edit the todo item
-                      navigateToEditTodoPage(item); //selected item eka gannawa
-                    } else if (value == 'delete') {
-                      // Delete the todo item
-                      deleteTodoById(todoId);
-                    }
-                  },
-                  itemBuilder: (context) {
-                    return [
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: Text('Edit'),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Delete'),
-                      ),
-                    ];
-                  },
-                ),
-              );
-            },
+          child: Visibility(
+            visible: toDoItems.isNotEmpty,
+            replacement: Center(
+              child: Text('No Todo Item found',
+                  style: Theme.of(context).textTheme.headlineMedium),
+            ),
+            child: ListView.builder(
+              itemCount: toDoItems.length,
+              padding: const EdgeInsets.all(8),
+              itemBuilder: (context, index) {
+                final item = toDoItems[index] as Map;
+                return TodoCard(
+                  index: index,
+                  item: item,
+                  navigateToEditTodoPage: navigateToEditTodoPage,
+                  deleteTodoById: deleteTodoById,
+                );
+              },
+            ),
           ),
         ),
         //data load wenakan loading indicator eka display wenawa
@@ -105,18 +89,14 @@ class _TodoListPageState extends State<TodoListPage> {
 
   Future<void> fetchTodoData() async {
     // Fetch the data from the server
-    final url = 'https://api.nstack.in/v1/todos?page=1&limit=10';
-    final uri = Uri.parse(url);
-    final response = await http.get(uri);
+    final response = await TodoService.fetchTodoData();
 
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body) as Map;
-      final result = json['items'] as List;
-      //items kiyl danne data enne 'items' kiyl list eke
-
+    if (response != []) {
       setState(() {
-        toDoItems = result;
+        toDoItems = response;
       });
+    } else {
+      showErrorMessage(context, message: 'Failed to fetch todo data');
     }
 
     setState(() {
@@ -126,11 +106,9 @@ class _TodoListPageState extends State<TodoListPage> {
 
   Future<void> deleteTodoById(String todoId) async {
     //delete the todo item
-    final url = 'https://api.nstack.in/v1/todos/$todoId';
-    final uri = Uri.parse(url);
-    final response = await http.delete(uri);
+    final isSuccess = await TodoService.deleteTodoById(todoId);
 
-    if (response.statusCode == 200) {
+    if (isSuccess) {
       //remove the todo item from the list
       final filterdItems =
           toDoItems.where((element) => element['_id'] != todoId).toList();
@@ -140,18 +118,7 @@ class _TodoListPageState extends State<TodoListPage> {
       fetchTodoData();
     } else {
       //show error message
-      showErrorMessage('Failed to delete todo');
+      showErrorMessage(context, message: 'Failed to delete todo item');
     }
-  }
-
-  void showErrorMessage(String message) {
-    final snackBar = SnackBar(
-      content: Text(
-        message,
-        style: TextStyle(color: Colors.white),
-      ),
-      backgroundColor: Colors.red,
-    );
-    ScaffoldMessenger.of(context).showSnackBar(snackBar);
   }
 }

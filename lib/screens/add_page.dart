@@ -1,7 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:todo_with_api/services/todo_service.dart';
+import 'package:todo_with_api/utils/snackbar_helper.dart';
 
 class AddTodoPage extends StatefulWidget {
   final Map? todoItem;
@@ -73,42 +72,42 @@ class _AddTodoPageState extends State<AddTodoPage> {
     // Get the title and description from the text fields
     final todoItem = widget.todoItem;
     if (todoItem == null) {
-      showErrorMessage('you can not call updated without todo data');
+      showErrorMessage(context, message: 'Failed to update todo');
       return;
     }
 
     final todoId = todoItem['_id'];
-    final isCompleted = todoItem['is_completed'];
-
-    final title = titleController.text;
-    final description = descriptionController.text;
-    final todoDataBody = {
-      "title": title,
-      "description": description,
-      "is_completed": isCompleted,
-    };
+    // final isCompleted = todoItem['is_completed'];
 
     // Send the data to the server
-    final url = 'https://api.nstack.in/v1/todos/$todoId';
-    final uri = Uri.parse(url);
-    final response = await http.put(
-      uri,
-      body: jsonEncode(todoDataBody),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    );
+    final isSuccess = await TodoService.updateTodoData(todoId, todoBody);
 
     // show success or error message based on status
-    if (response.statusCode == 200) {
-      showSuccesMessage('Todo updated successfully');
+    if (isSuccess) {
+      showSuccesMessage(context, message: 'Todo updated successfully');
     } else {
-      showErrorMessage('Failed to update todo');
+      showErrorMessage(context, message: 'Failed to update todo');
     }
   }
 
   Future<void> submitTodoData() async {
     // Get the title and description from the text fields
+    final todoDataBody = todoBody;
+    // Send the data to the server
+    final isSuccess = await TodoService.submitTodoData(todoDataBody);
+    // show success or error message based on status
+    if (isSuccess) {
+      titleController.text = '';
+      descriptionController.text = '';
+
+      showSuccesMessage(context, message: 'Todo added successfully');
+    } else {
+      showErrorMessage(context, message: 'Failed to add todo');
+    }
+  }
+
+  Map get todoBody {
+    //get the title and description from the text fields
     final title = titleController.text;
     final description = descriptionController.text;
     final todoDataBody = {
@@ -117,41 +116,6 @@ class _AddTodoPageState extends State<AddTodoPage> {
       "is_completed": false,
     };
 
-    // Send the data to the server
-    final url = 'https://api.nstack.in/v1/todos';
-    final uri = Uri.parse(url);
-    final response = await http.post(
-      uri,
-      body: jsonEncode(todoDataBody),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    );
-
-    // show success or error message based on status
-    if (response.statusCode == 201) {
-      titleController.text = '';
-      descriptionController.text = '';
-
-      showSuccesMessage('Todo added successfully');
-    } else {
-      showErrorMessage('Failed to add todo');
-    }
-  }
-
-  void showSuccesMessage(String message) {
-    final snackBar = SnackBar(content: Text(message));
-    ScaffoldMessenger.of(context).showSnackBar(snackBar);
-  }
-
-  void showErrorMessage(String message) {
-    final snackBar = SnackBar(
-      content: Text(
-        message,
-        style: TextStyle(color: Colors.white),
-      ),
-      backgroundColor: Colors.red,
-    );
-    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+    return todoDataBody;
   }
 }
